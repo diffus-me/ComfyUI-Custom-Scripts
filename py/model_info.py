@@ -1,6 +1,8 @@
 import hashlib
 import json
 from aiohttp import web
+
+import execution_context
 from server import PromptServer
 import folder_paths
 import os
@@ -29,24 +31,25 @@ async def save_notes(request):
     pos = name.index("/")
     type = name[0:pos]
     name = name[pos+1:]
+    context = execution_context.ExecutionContext(request)
 
     file_path = None
     if type == "embeddings" or type == "loras":
         name = name.lower()
-        files = folder_paths.get_filename_list(type)
+        files = folder_paths.get_filename_list(context, type)
         for f in files:
             lower_f = f.lower()
             if lower_f == name:
-                file_path = folder_paths.get_full_path(type, f)
+                file_path = folder_paths.get_full_path(context, type, f)
             else:
                 n = os.path.splitext(f)[0].lower()
                 if n == name:
-                    file_path = folder_paths.get_full_path(type, f)
+                    file_path = folder_paths.get_full_path(context, type, f)
 
             if file_path is not None:
                 break
     else:
-        file_path = folder_paths.get_full_path(
+        file_path = folder_paths.get_full_path( context,
             type, name)
     if not file_path:
         return web.Response(status=404)
@@ -65,24 +68,25 @@ async def load_metadata(request):
     pos = name.index("/")
     type = name[0:pos]
     name = name[pos+1:]
+    context = execution_context.ExecutionContext(request)
 
     file_path = None
     if type == "embeddings" or type == "loras":
         name = name.lower()
-        files = folder_paths.get_filename_list(type)
+        files = folder_paths.get_filename_list(context, type)
         for f in files:
             lower_f = f.lower()
             if lower_f == name:
-                file_path = folder_paths.get_full_path(type, f)
+                file_path = folder_paths.get_full_path(context, type, f)
             else:
                 n = os.path.splitext(f)[0].lower()
                 if n == name:
-                    file_path = folder_paths.get_full_path(type, f)
+                    file_path = folder_paths.get_full_path(context, type, f)
 
             if file_path is not None:
                 break
     else:
-        file_path = folder_paths.get_full_path(
+        file_path = folder_paths.get_full_path( context,
             type, name)
     if not file_path:
         return web.Response(status=404)

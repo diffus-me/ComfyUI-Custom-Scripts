@@ -5,34 +5,43 @@ import inspect
 import json
 import importlib
 import sys
+
+import execution_context
+import folder_paths
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import pysssss
 
-root_directory = os.path.dirname(inspect.getfile(PromptServer))
-workflows_directory = os.path.join(root_directory, "pysssss-workflows")
-workflows_directory = pysssss.get_config_value(
-    "workflows.directory", workflows_directory)
+# root_directory = os.path.dirname(inspect.getfile(PromptServer))
+# workflows_directory = os.path.join(root_directory, "pysssss-workflows")
+# workflows_directory = pysssss.get_config_value(
+#     "workflows.directory", workflows_directory)
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 
+def get_workflows_directory(request):
+    context = execution_context.ExecutionContext(request)
+    return os.path.join(folder_paths.get_user_directory(context.user_hash), 'workflows')
+
+
 @PromptServer.instance.routes.get("/pysssss/workflows")
 async def get_workflows(request):
     files = []
-    for dirpath, directories, file in os.walk(workflows_directory):
+    for dirpath, directories, file in os.walk(get_workflows_directory(request)):
         for file in file:
             if (file.endswith(".json")):
                 files.append(os.path.relpath(os.path.join(
-                    dirpath, file), workflows_directory))
+                    dirpath, file), get_workflows_directory(request)))
     return web.json_response(list(map(lambda f: os.path.splitext(f)[0].replace("\\", "/"), files)))
 
 
 @PromptServer.instance.routes.get("/pysssss/workflows/{name:.+}")
 async def get_workflow(request):
     file = os.path.abspath(os.path.join(
-        workflows_directory, request.match_info["name"] + ".json"))
-    if os.path.commonpath([file, workflows_directory]) != workflows_directory:
+        get_workflows_directory(request), request.match_info["name"] + ".json"))
+    if os.path.commonpath([file, get_workflows_directory(request)]) != get_workflows_directory(request):
         return web.Response(status=403)
 
     return web.FileResponse(file)
@@ -42,8 +51,8 @@ async def get_workflow(request):
 async def save_workflow(request):
     json_data = await request.json()
     file = os.path.abspath(os.path.join(
-        workflows_directory, json_data["name"] + ".json"))
-    if os.path.commonpath([file, workflows_directory]) != workflows_directory:
+        get_workflows_directory(request), json_data["name"] + ".json"))
+    if os.path.commonpath([file, get_workflows_directory(request)]) != get_workflows_directory(request):
         return web.Response(status=403)
 
     if os.path.exists(file) and ("overwrite" not in json_data or json_data["overwrite"] == False):

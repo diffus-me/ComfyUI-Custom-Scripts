@@ -1,4 +1,6 @@
 import os
+
+import execution_context
 import folder_paths
 import json
 from server import PromptServer
@@ -17,15 +19,15 @@ def get_valid_dirs():
     return get_allowed_dirs().keys()
 
 
-def get_dir_from_name(name):
+def get_dir_from_name(context: execution_context.ExecutionContext, name):
     dirs = get_allowed_dirs()
     if name not in dirs:
         raise KeyError(name + " dir not found")
 
     path = dirs[name]
-    path = path.replace("$input", folder_paths.get_input_directory())
-    path = path.replace("$output", folder_paths.get_output_directory())
-    path = path.replace("$temp", folder_paths.get_temp_directory())
+    path = path.replace("$input", folder_paths.get_input_directory(context.user_hash))
+    path = path.replace("$output", folder_paths.get_output_directory(context.user_hash))
+    path = path.replace("$temp", folder_paths.get_temp_directory(context.user_hash))
     return path
 
 
@@ -44,8 +46,9 @@ def get_real_path(dir):
 
 @PromptServer.instance.routes.get("/pysssss/text-file/{name}")
 async def get_files(request):
+    context = execution_context.ExecutionContext(request)
     name = request.match_info["name"]
-    dir = get_dir_from_name(name)
+    dir = get_dir_from_name(context, name)
     recursive = "/**/" in dir
     # Ugh cant use root_path on glob... lazy hack..
     pre = get_real_path(dir)
@@ -58,11 +61,11 @@ async def get_files(request):
     return web.json_response(files)
 
 
-def get_file(root_dir, file):
+def get_file(context: execution_context.ExecutionContext, root_dir, file):
     if file == "[none]" or not file or not file.strip():
         raise ValueError("No file")
 
-    root_dir = get_dir_from_name(root_dir)
+    root_dir = get_dir_from_name(context, root_dir)
     root_dir = get_real_path(root_dir)
     if not os.path.exists(root_dir):
         os.mkdir(root_dir)
@@ -82,11 +85,11 @@ class TextFileNode:
     def VALIDATE_INPUTS(self, root_dir, file, **kwargs):
         if file == "[none]" or not file or not file.strip():
             return True
-        get_file(root_dir, file)
+        get_file(kwargs['context'], root_dir, file)
         return True
 
     def load_text(self, **kwargs):
-        self.file = get_file(kwargs["root_dir"], kwargs["file"])
+        self.file = get_file(kwargs["context"], kwargs["root_dir"], kwargs["file"])
         with open(self.file, "r") as f:
             return (f.read(), )
 
@@ -126,6 +129,9 @@ class LoadText(TextFileNode):
                     }]
                 })
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
+            }
         }
 
     FUNCTION = "load_text"
@@ -171,12 +177,15 @@ class SaveText(TextFileNode):
                 }),
                 "text": ("STRING", {"forceInput": True, "multiline": True})
             },
+            "hidden": {
+                "context": "EXECUTION_CONTEXT"
+            }
         }
 
     FUNCTION = "write_text"
 
     def write_text(self, **kwargs):
-        self.file = get_file(kwargs["root_dir"], kwargs["file"])
+        self.file = get_file(kwargs["context"], kwargs["root_dir"], kwargs["file"])
         if kwargs["append"] == "new only" and os.path.exists(self.file):
             raise FileExistsError(
                 self.file + " already exists and 'new only' is selected.")

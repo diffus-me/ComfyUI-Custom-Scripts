@@ -1,3 +1,4 @@
+import execution_context
 from server import PromptServer
 from aiohttp import web
 import os
@@ -25,5 +26,6 @@ async def update_autocomplete(request):
 
 @PromptServer.instance.routes.get("/pysssss/loras")
 async def get_loras(request):
-    loras = folder_paths.get_filename_list("loras")
+    context = execution_context.ExecutionContext(request)
+    loras = folder_paths.get_filename_list(context, "loras")
     return web.json_response(list(map(lambda a: os.path.splitext(a)[0], loras)))
