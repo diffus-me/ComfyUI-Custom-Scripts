@@ -1,11 +1,14 @@
 import glob
 import os
+
 from nodes import LoraLoader, CheckpointLoaderSimple
 import folder_paths
 from server import PromptServer
 from folder_paths import get_directory_by_type
 from aiohttp import web
 import shutil
+
+import execution_context
 
 
 @PromptServer.instance.routes.get("/pysssss/view/{name}")
@@ -14,8 +17,9 @@ async def view(request):
     pos = name.index("/")
     type = name[0:pos]
     name = name[pos+1:]
+    context = execution_context.ExecutionContext(request)
 
-    image_path = folder_paths.get_full_path(
+    image_path = folder_paths.get_full_path(context,
         type, name)
     if not image_path:
         return web.Response(status=404)
@@ -30,10 +34,10 @@ async def save_preview(request):
     pos = name.index("/")
     type = name[0:pos]
     name = name[pos+1:]
+    context = execution_context.ExecutionContext(request)
 
     body = await request.json()
-
-    dir = get_directory_by_type(body.get("type", "output"))
+    dir = get_directory_by_type(body.get("type", "output"), context.user_hash)
     subfolder = body.get("subfolder", "")
     full_output_folder = os.path.join(dir, os.path.normpath(subfolder))
 
@@ -59,8 +63,9 @@ async def get_examples(request):
     pos = name.index("/")
     type = name[0:pos]
     name = name[pos+1:]
+    context = execution_context.ExecutionContext(request)
 
-    file_path = folder_paths.get_full_path(
+    file_path = folder_paths.get_full_path(context,
         type, name)
     if not file_path:
         return web.Response(status=404)
@@ -114,12 +119,12 @@ async def get_images(request):
     images = {}
     for item_name in names:
         file_name = os.path.splitext(item_name)[0]
-        file_path = folder_paths.get_full_path(type, item_name)
+        file_path = folder_paths.get_full_path(context, type, item_name)
 
         if file_path is None:
             continue
 
-        file_path_no_ext = os.path.splitext(file_path)[0]
+        file_path_no_ext = os.path.splitext(str(file_path))[0]
 
         for ext in ["png", "jpg", "jpeg", "preview.png", "preview.jpeg"]:
             if os.path.isfile(file_path_no_ext + "." + ext):
@@ -135,8 +140,8 @@ class LoraLoaderWithImages(LoraLoader):
                     LoraLoader.RETURN_TYPES), "example")
 
     @classmethod
-    def INPUT_TYPES(s):
-        types = super().INPUT_TYPES()
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
+        types = super().INPUT_TYPES(context)
         types["optional"] = {"prompt": ("STRING", {"hidden": True})}
         return types
 
@@ -151,8 +156,8 @@ class CheckpointLoaderSimpleWithImages(CheckpointLoaderSimple):
                     CheckpointLoaderSimple.RETURN_TYPES), "example")
 
     @classmethod
-    def INPUT_TYPES(s):
-        types = super().INPUT_TYPES()
+    def INPUT_TYPES(s, context: execution_context.ExecutionContext):
+        types = super().INPUT_TYPES(context)
         types["optional"] = {"prompt": ("STRING", {"hidden": True})}
         return types
 

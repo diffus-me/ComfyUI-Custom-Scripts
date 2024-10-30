@@ -3,6 +3,7 @@ import glob
 import os
 import sys
 from .pysssss import init, get_ext_dir
+from .py import autocomplete
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
