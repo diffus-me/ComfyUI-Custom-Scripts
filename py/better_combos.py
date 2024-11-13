@@ -46,7 +46,7 @@ async def save_preview(request):
     if os.path.commonpath((dir, os.path.abspath(filepath))) != dir:
         return web.Response(status=400)
 
-    image_path = folder_paths.get_full_path(type, name)
+    image_path = folder_paths.get_full_path(context, type, name)
     image_path = os.path.splitext(
         image_path)[0] + os.path.splitext(filepath)[1]
 
@@ -92,9 +92,8 @@ async def save_example(request):
     body = await request.json()
     example_name = body["name"]
     example = body["example"]
-
-    file_path = folder_paths.get_full_path(
-        type, name)
+    context = execution_context.ExecutionContext(request)
+    file_path = folder_paths.get_full_path(context, type, name)
     if not file_path:
         return web.Response(status=404)
 
@@ -113,9 +112,9 @@ async def save_example(request):
 
 @PromptServer.instance.routes.get("/pysssss/images/{type}")
 async def get_images(request):
+    context = execution_context.ExecutionContext(request)
     type = request.match_info["type"]
-    names = folder_paths.get_filename_list(type)
-
+    names = folder_paths.get_filename_list(context, type)
     images = {}
     for item_name in names:
         file_name = os.path.splitext(item_name)[0]
@@ -145,6 +144,13 @@ class LoraLoaderWithImages(LoraLoader):
         types["optional"] = {"prompt": ("STRING", {"hidden": True})}
         return types
 
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        context = kwargs["context"]
+        lora_name = kwargs["lora_name"]
+        context.validate_model("loras", lora_name)
+        return True
+
     def load_lora(self, **kwargs):
         prompt = kwargs.pop("prompt", "")
         return (*super().load_lora(**kwargs), prompt)
@@ -160,6 +166,13 @@ class CheckpointLoaderSimpleWithImages(CheckpointLoaderSimple):
         types = super().INPUT_TYPES(context)
         types["optional"] = {"prompt": ("STRING", {"hidden": True})}
         return types
+
+    @classmethod
+    def VALIDATE_INPUTS(cls, **kwargs):
+        context = kwargs["context"]
+        ckpt_name = kwargs["ckpt_name"]
+        context.validate_model("checkpoints", ckpt_name)
+        return True
 
     def load_checkpoint(self, **kwargs):
         prompt = kwargs.pop("prompt", "")
