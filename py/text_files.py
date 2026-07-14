@@ -8,8 +8,13 @@ import glob
 from aiohttp import web
 
 
-def get_allowed_dirs():
-    dir = os.path.abspath(os.path.join(__file__, "../../user"))
+def get_allowed_dirs(exec_context: execution_context.ExecutionContext):
+    dir = os.path.abspath(os.path.join(
+        folder_paths.get_user_directory(exec_context),
+        "default",
+        "ComfyUI-Custom-Scripts",
+        "../../user")
+    )
     file = os.path.join(dir, "text_file_dirs.json")
     with open(file, "r") as f:
         return json.loads(f.read())
