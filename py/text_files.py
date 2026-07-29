@@ -20,12 +20,12 @@ def get_allowed_dirs(exec_context: execution_context.ExecutionContext):
         return json.loads(f.read())
 
 
-def get_valid_dirs():
-    return get_allowed_dirs().keys()
+def get_valid_dirs(exec_context: execution_context.ExecutionContext):
+    return get_allowed_dirs(exec_context).keys()
 
 
 def get_dir_from_name(context: execution_context.ExecutionContext, name):
-    dirs = get_allowed_dirs()
+    dirs = get_allowed_dirs(context)
     if name not in dirs:
         raise KeyError(name + " dir not found")
 
@@ -154,10 +154,10 @@ class SaveText(TextFileNode):
         return float("nan")
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(s, exec_context: execution_context.ExecutionContext):
         return {
             "required": {
-                "root_dir": (list(get_valid_dirs()), {}),
+                "root_dir": (list(get_valid_dirs(exec_context)), {}),
                 "file": ("STRING", {"default": "file.txt"}),
                 "append": (["append", "overwrite", "new only"], {}),
                 "insert": ("BOOLEAN", {
@@ -208,11 +208,11 @@ class SaveText(TextFileNode):
 
 
 NODE_CLASS_MAPPINGS = {
-    "LoadText|pysssss": LoadText,
-    "SaveText|pysssss": SaveText,
+    # "LoadText|pysssss": LoadText,
+    # "SaveText|pysssss": SaveText,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LoadText|pysssss": "Load Text 🐍",
-    "SaveText|pysssss": "Save Text 🐍",
+    # "LoadText|pysssss": "Load Text 🐍",
+    # "SaveText|pysssss": "Save Text 🐍",
 }
